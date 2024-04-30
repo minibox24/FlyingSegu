@@ -85,16 +85,19 @@ namespace FlyingSegu
 
                 if (_previousMousePos.X != x)
                 {
-                    if (_previousMousePos.X < x != isFlipped)
+                    if (_previousMousePos.X < x != isFlipped && MathF.Abs(_previousMousePos.X - x) > this.Width / 10)
                     {
                         pictureBox1.Image.RotateFlip(RotateFlipType.RotateNoneFlipX);
                         pictureBox1.Invalidate();
+                        isFlipped = _previousMousePos.X < x;
+                        _previousMousePos = new Point(x, y);
                     }
-
-                    isFlipped = _previousMousePos.X < x;
+                    else if (_previousMousePos.X < x == isFlipped) 
+                        _previousMousePos = new Point((int)x, (int)y);
+                
                 }
 
-                _previousMousePos = new Point(x, y);
+              
                 this.Location = new Point(isFlipped ? x - this.Width : x, y);
             }
 
