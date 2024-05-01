@@ -51,6 +51,9 @@ namespace FlyingSegu
         {
             InitializeComponent();
             InitializePictureBox();
+
+            this.TopMost = true;
+
             _proc = HookCallback;
             _hookID = SetHook(_proc);
             Application.ApplicationExit += (sender, e) => { UnhookWindowsHookEx(_hookID); };
