@@ -11,6 +11,10 @@ namespace FlyingSegu
         private const int WH_MOUSE_LL = 14;
         private const int WM_MOUSEMOVE = 0x0200;
 
+        private const int WH_KEYBOARD_LL = 13;
+        private const int WM_KEYDOWN = 0x0100;
+        private const int VK_F3 = 0x72;
+
         private delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
@@ -42,8 +46,10 @@ namespace FlyingSegu
 
         private LowLevelMouseProc _proc;
         private IntPtr _hookID = IntPtr.Zero;
+        private IntPtr _hookID2 = IntPtr.Zero;
         private Point _previousMousePos;
         private bool isFlipped = false;
+        private bool isSmall = false;
 
         private PictureBox pictureBox1;
 
@@ -54,7 +60,12 @@ namespace FlyingSegu
 
             _proc = HookCallback;
             _hookID = SetHook(_proc);
-            Application.ApplicationExit += (sender, e) => { UnhookWindowsHookEx(_hookID); };
+            _hookID2 = SetHook2(_proc);
+
+            Application.ApplicationExit += (sender, e) => {
+                UnhookWindowsHookEx(_hookID);
+                UnhookWindowsHookEx(_hookID2);
+            };
         }
 
         private void InitializePictureBox()
@@ -75,33 +86,66 @@ namespace FlyingSegu
             }
         }
 
+        private IntPtr SetHook2(LowLevelMouseProc proc)
+        {
+            using (Process curProcess = Process.GetCurrentProcess())
+            using (ProcessModule curModule = curProcess.MainModule)
+            {
+                return SetWindowsHookEx(WH_KEYBOARD_LL, proc, GetModuleHandle(curModule.ModuleName), 0);
+            }
+        }
+
         private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
-            if (nCode >= 0 && wParam == (IntPtr)WM_MOUSEMOVE)
+            if (nCode >= 0)
             {
-                MSLLHOOKSTRUCT hookStruct = (MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));
-
-                int x = (int)hookStruct.Pt.X;
-                int y = (int)hookStruct.Pt.Y;
-
-                this.TopMost = true;
-
-                if (_previousMousePos.X != x)
+                if (wParam == WM_KEYDOWN)
                 {
-                    if (_previousMousePos.X < x != isFlipped && MathF.Abs(_previousMousePos.X - x) > this.Width / 10)
+                    int vkCode = Marshal.ReadInt32(lParam);
+                    if ((Keys)vkCode == Keys.F3)
                     {
-                        pictureBox1.Image.RotateFlip(RotateFlipType.RotateNoneFlipX);
-                        pictureBox1.Invalidate();
-                        isFlipped = _previousMousePos.X < x;
-                        _previousMousePos = new Point(x, y);
+                        isSmall = !isSmall;
+
+                        if (isSmall)
+                        {
+                            this.Width = 300;
+                            this.Height = 180;
+                        } else
+                        {
+                            this.Width = 684;
+                            this.Height = 373;
+                        }
+
+
+                        pictureBox1.Size = new Size(this.Width, this.Height);
                     }
-                    else if (_previousMousePos.X < x == isFlipped) 
-                        _previousMousePos = new Point((int)x, (int)y);
-                
                 }
 
-              
-                this.Location = new Point(isFlipped ? x - this.Width : x, y);
+                if (wParam == WM_MOUSEMOVE)
+                {
+                    MSLLHOOKSTRUCT hookStruct = (MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));
+
+                    int x = (int)hookStruct.Pt.X;
+                    int y = (int)hookStruct.Pt.Y;
+
+                    this.TopMost = true;
+
+                    if (_previousMousePos.X != x)
+                    {
+                        if (_previousMousePos.X < x != isFlipped && MathF.Abs(_previousMousePos.X - x) > this.Width / 10)
+                        {
+                            pictureBox1.Image.RotateFlip(RotateFlipType.RotateNoneFlipX);
+                            pictureBox1.Invalidate();
+                            isFlipped = _previousMousePos.X < x;
+                            _previousMousePos = new Point(x, y);
+                        }
+                        else if (_previousMousePos.X < x == isFlipped)
+                            _previousMousePos = new Point((int)x, (int)y);
+
+                    }
+
+                    this.Location = new Point(isFlipped ? x - this.Width : x, y);
+                }
             }
 
             return CallNextHookEx(_hookID, nCode, wParam, lParam);
